@@ -3,6 +3,9 @@
 {% block title %}Claude Code transcript - Index{% endblock %}
 
 {% block content %}
+        {% if project_name %}
+        <p style="margin-bottom: 8px;"><a href="../../index.html">Archive</a> / <a href="../index.html">{{ project_name }}</a></p>
+        {% endif %}
         <div class="header-row">
             <h1>Claude Code transcript</h1>
             <div id="search-box">

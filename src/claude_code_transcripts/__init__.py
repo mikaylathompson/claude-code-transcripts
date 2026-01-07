@@ -350,7 +350,9 @@ def generate_batch_html(
 
             # Generate transcript HTML with error handling
             try:
-                generate_html(session["path"], session_dir)
+                generate_html(
+                    session["path"], session_dir, project_name=project["name"]
+                )
                 successful_sessions += 1
             except Exception as e:
                 failed_sessions.append(
@@ -443,7 +445,7 @@ def generate_incremental_html(
         session_dir = project_dir / session_name
 
         try:
-            generate_html(session_file, session_dir)
+            generate_html(session_file, session_dir, project_name=project_name)
             sessions_regenerated += 1
         except Exception as e:
             failed_sessions.append(
@@ -1357,7 +1359,7 @@ def generate_index_pagination_html(total_pages):
     return _macros.index_pagination(total_pages)
 
 
-def generate_html(json_path, output_dir, github_repo=None):
+def generate_html(json_path, output_dir, github_repo=None, project_name=None):
     output_dir = Path(output_dir)
     output_dir.mkdir(exist_ok=True)
 
@@ -1524,6 +1526,7 @@ def generate_html(json_path, output_dir, github_repo=None):
         total_commits=total_commits,
         total_pages=total_pages,
         index_items_html="".join(index_items),
+        project_name=project_name,
     )
     index_path = output_dir / "index.html"
     index_path.write_text(index_content, encoding="utf-8")
