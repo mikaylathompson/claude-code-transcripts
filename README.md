@@ -5,7 +5,7 @@
 [![Tests](https://github.com/simonw/claude-code-transcripts/workflows/Test/badge.svg)](https://github.com/simonw/claude-code-transcripts/actions?query=workflow%3ATest)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/simonw/claude-code-transcripts/blob/main/LICENSE)
 
-Convert Claude Code session files (JSON or JSONL) to clean, mobile-friendly HTML pages with pagination.
+Convert Claude Code and Codex session files (JSON or JSONL) to clean, mobile-friendly HTML pages with pagination.
 
 [Example transcript](https://static.simonwillison.net/static/2025/claude-code-microjs/index.html) produced using this tool.
 
@@ -28,11 +28,11 @@ uvx claude-code-transcripts --help
 
 ## Usage
 
-This tool converts Claude Code session files into browseable multi-page HTML transcripts.
+This tool converts Claude Code and Codex session files into browseable multi-page HTML transcripts.
 
 There are four commands available:
 
-- `local` (default) - select from local Claude Code sessions stored in `~/.claude/projects`
+- `local` (default) - select from local sessions stored in `~/.claude/projects` and `~/.codex/sessions`
 - `web` - select from web sessions via the Claude API
 - `json` - convert a specific JSON or JSONL session file
 - `all` - convert all local sessions to a browsable HTML archive
@@ -62,7 +62,9 @@ The generated output includes:
 
 ### Local sessions
 
-Local Claude Code sessions are stored as JSONL files in `~/.claude/projects`. Run with no arguments to select from recent sessions:
+Local Claude Code sessions are stored as JSONL files in `~/.claude/projects`.
+Local Codex sessions are discovered from `~/.codex/sessions`.
+Run with no arguments to select from recent sessions across both locations:
 
 ```bash
 claude-code-transcripts
@@ -175,7 +177,7 @@ The `json` command can take a URL to a JSON or JSONL file as an alternative to a
 
 ### Converting all sessions
 
-Convert all your local Claude Code sessions to a browsable HTML archive:
+Convert all your local Claude Code and Codex sessions to a browsable HTML archive:
 
 ```bash
 claude-code-transcripts all
@@ -188,7 +190,7 @@ This creates a directory structure with:
 
 Options:
 
-- `-s, --source DIRECTORY` - source directory (default: `~/.claude/projects`)
+- `-s, --source DIRECTORY` - source directory (default: scans `~/.claude/projects` and `~/.codex/sessions`)
 - `-o, --output DIRECTORY` - output directory (default: `./claude-archive`)
 - `--include-agents` - include agent session files (excluded by default)
 - `--dry-run` - show what would be converted without creating files
