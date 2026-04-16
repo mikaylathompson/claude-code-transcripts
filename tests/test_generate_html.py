@@ -1142,6 +1142,30 @@ class TestParseSessionFile:
         assert "hello world" in index_html.lower()
         assert index_html == snapshot_html
 
+    def test_parses_codex_jsonl_response_items(self, tmp_path):
+        """Test Codex JSONL response_item format is normalized for rendering."""
+        codex_file = tmp_path / "codex-session.jsonl"
+        codex_file.write_text(
+            '{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Build a calculator"}]}}\n'
+            '{"timestamp":"2026-01-01T00:00:01Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\\"command\\":\\"pytest\\"}","call_id":"call_1"}}\n'
+            '{"timestamp":"2026-01-01T00:00:02Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call_1","output":"all tests passed"}}\n'
+            '{"timestamp":"2026-01-01T00:00:03Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Done."}]}}\n'
+        )
+
+        result = parse_session_file(codex_file)
+        loglines = result["loglines"]
+
+        assert [entry["type"] for entry in loglines] == [
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+        ]
+        assert loglines[0]["message"]["content"][0]["text"] == "Build a calculator"
+        assert loglines[1]["message"]["content"][0]["type"] == "tool_use"
+        assert loglines[2]["message"]["content"][0]["type"] == "tool_result"
+        assert loglines[3]["message"]["content"][0]["text"] == "Done."
+
 
 class TestGetSessionSummary:
     """Tests for get_session_summary which extracts summary from session files."""
@@ -1176,6 +1200,15 @@ class TestGetSessionSummary:
         summary = get_session_summary(jsonl_file, max_length=100)
         assert len(summary) <= 100
         assert summary.endswith("...")
+
+    def test_gets_summary_from_codex_response_item_user_message(self, tmp_path):
+        """Test Codex JSONL summary fallback from the first user message."""
+        jsonl_file = tmp_path / "codex.jsonl"
+        jsonl_file.write_text(
+            '{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Implement support for codex logs"}]}}\n'
+        )
+        summary = get_session_summary(jsonl_file)
+        assert summary == "Implement support for codex logs"
 
 
 class TestFindLocalSessions:
@@ -1388,6 +1421,37 @@ class TestLocalSessionCLI:
 
         assert result.exit_code == 0
         assert "No session selected" in result.output
+
+    def test_local_finds_codex_sessions(self, tmp_path, monkeypatch):
+        """Test local command discovers Codex sessions from ~/.codex/sessions."""
+        from click.testing import CliRunner
+        from claude_code_transcripts import cli
+        import questionary
+
+        codex_dir = tmp_path / ".codex" / "sessions" / "project-a"
+        codex_dir.mkdir(parents=True)
+        session_file = codex_dir / "rollout-001.jsonl"
+        session_file.write_text(
+            '{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Codex session"}]}}\n'
+            '{"timestamp":"2026-01-01T00:00:01Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Working on it"}]}}\n'
+        )
+
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+
+        class MockSelect:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def ask(self):
+                return session_file
+
+        monkeypatch.setattr(questionary, "select", MockSelect)
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["local"])
+
+        assert result.exit_code == 0
+        assert "Loading local sessions" in result.output
 
 
 class TestOutputAutoOption:

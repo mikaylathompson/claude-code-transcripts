@@ -9,6 +9,7 @@ from click.testing import CliRunner
 from claude_code_transcripts import (
     cli,
     find_all_sessions,
+    find_all_sessions_from_sources,
     get_project_display_name,
     generate_batch_html,
 )
@@ -162,6 +163,43 @@ class TestFindAllSessions:
         for session in project_a["sessions"]:
             assert "summary" in session
             assert session["summary"] != "(no summary)"
+
+    def test_finds_codex_response_item_sessions(self, tmp_path):
+        """Test Codex response_item JSONL sessions are discovered."""
+        codex_project = tmp_path / ".codex" / "sessions" / "project-codex"
+        codex_project.mkdir(parents=True)
+        session = codex_project / "rollout-001.jsonl"
+        session.write_text(
+            '{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Build codex support"}]}}\n'
+            '{"timestamp":"2026-01-01T00:00:01Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Sure"}]}}\n'
+        )
+
+        result = find_all_sessions(codex_project)
+
+        assert len(result) == 1
+        assert result[0]["name"] == "project-codex"
+        assert result[0]["sessions"][0]["summary"] == "Build codex support"
+
+    def test_merges_sessions_from_multiple_sources(self, tmp_path):
+        """Test combining Claude and Codex source directories."""
+        claude_project = tmp_path / ".claude" / "projects" / "claude-project"
+        codex_project = tmp_path / ".codex" / "sessions" / "codex-project"
+        claude_project.mkdir(parents=True)
+        codex_project.mkdir(parents=True)
+
+        (claude_project / "claude.jsonl").write_text(
+            '{"type":"summary","summary":"Claude summary"}\n'
+            '{"type":"user","message":{"role":"user","content":"Claude message"}}\n'
+        )
+        (codex_project / "codex.jsonl").write_text(
+            '{"timestamp":"2026-01-01T00:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Codex message"}]}}\n'
+        )
+
+        projects = find_all_sessions_from_sources([claude_project, codex_project])
+        names = {project["name"] for project in projects}
+
+        assert "claude-project" in names
+        assert "codex-project" in names
 
 
 class TestGenerateBatchHtml:
